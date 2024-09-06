@@ -1,0 +1,10 @@
+tests
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv
+.git
+.python-version
+.env

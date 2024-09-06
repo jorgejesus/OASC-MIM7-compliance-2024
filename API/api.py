@@ -7,7 +7,7 @@
 #    -F "file=@./tests/example.gpkg" \
 import httpx
 import os
-from datetime import datetime
+from datetime import datetime; startup_time = datetime.now()
 
 from fastapi import FastAPI, Query, Request, File, UploadFile
 from fastapi import HTTPException
