@@ -1,0 +1,88 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# pyenv local version
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# Virtualenv
+# If using Pipenv or Poetry, it’s generally recommended to include the virtualenv in the .venv directory inside the project.
+# The following ensures this directory is ignored. You can also opt to store it elsewhere, and then include the appropriate directory.
+.venv/
+venv/
+
+# VSCode / VSCodium settings
+.vscode/
+.vscodium/
+.vscode/*
+.vscodium/*
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# pyenv
+pyenv/
+.python-version
+
+# Editor directories and files
+.idea/
+.project
+.pydevproject
+
+# MacOS
+.DS_Store
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+
