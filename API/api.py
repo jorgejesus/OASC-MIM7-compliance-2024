@@ -2,19 +2,29 @@
 # check_service('https://demo.pygeoapi.io/stable/') --> OGC API features complainet
 # check_service('https://www.google.com') --> Not compliant
 
+# curl -X POST "http://127.0.0.1:8000/r2" -H "accept: application/json" \
+#    -H "Content-Type: multipart/form-data" \
+#    -F "file=@./tests/example.gpkg" \
 import httpx
 import os
 from datetime import datetime
 
-from fastapi import FastAPI, Query, Request, HTTPException
+from fastapi import FastAPI, Query, Request, File, UploadFile
+from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from schemas import PingResponse, ComplianceResponse
+from schemas import PingResponse, ComplianceResponse, GeoPackageResponse
 
 from contextlib import asynccontextmanager
 from config import LOG_LEVEL
 
 from api_logging import log, request_id_var, log_requests
 from api_exceptions import ComplianceException
+
+import geopandas as gpd  # To read the GPKG layers
+import pyogrio  # Vectorized spatial vector file format I/O using GDAL/OGR, with async support ???
+
+import asyncio  # so that check_geopackage doesn't block the main event loop
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,30 +55,70 @@ async def compliance_exception_handler(request: Request, exc: ComplianceExceptio
     )
 
 
-@app.get("/ping", response_model=PingResponse)
-async def ping_pong() -> PingResponse:
+@app.post("/r2")
+async def check_geopackage(file: UploadFile = File(...)):
     """
-    Ping the API to check if it is operational and report its uptime.
+    Check GeoPackage directly from the uploaded file without saving to a temporary location.
+
+    curl -X POST "http://127.0.0.1:8000/r2" -H "accept: application/json"
+    -H "Content-Type: multipart/form-data"
+    -F "file=@./tests/example.gpkg"
     """
-    current_time = datetime.now()
-    uptime = current_time - startup_time
-    # NO microseconds
-    uptime_str = str(uptime).split(".")[0]
-    startup_time_iso = startup_time.isoformat()
-    current_time_iso = current_time.isoformat()
-    # Dummy status as operations, extend status are necessary
-    return PingResponse(
-        status="operational",
-        uptime=uptime_str,
-        startup_time=startup_time_iso,
-        current_time=current_time_iso,
-    )
+    # Check if file was uploaded
+    if not file:
+        raise HTTPException(status_code=400, detail="No file part")
+
+    # Read the file directly from the UploadFile object
+    file_content = await file.read()  # Read file content into memory
+
+    # Offload the blocking function to a thread, pass file content as bytes
+    result = await asyncio.to_thread(check_geopackage_func, file_content)
+
+    # No need for JSONResponse; FastAPI will handle the serialization of Pydantic models
+    return result
+    # return JSONResponse(content=result)
+
+
+def check_geopackage_func(file_content) -> GeoPackageResponse:
+    """
+    Check the GeoPackage file content passed as bytes.
+    """
+    try:
+        # Load layers using pyogrio directly from in-memory bytes
+        layers_info = pyogrio.list_layers(file_content)
+
+        # Iterate over all layers
+        for layer_info in layers_info:
+            layer_name = layer_info[0]
+
+            # Load the layer into a GeoDataFrame from the bytes content using geopandas
+            data = gpd.read_file(file_content, layer=layer_name)
+
+            if "geometry" in data.columns and not data["geometry"].isnull().all():
+                data = data.head(50)  # Limit to 50 records
+
+                # Return an actual GeoPackageResponse object
+                return GeoPackageResponse(
+                    layer_name=layer_name,
+                    contains_geospatial_data=True,
+                    identifiers_unique=data.index.is_unique,
+                    identifiers_persistent=data.index.is_monotonic_increasing,
+                )
+
+    except Exception as e:
+        return {"message": f"Error processing GeoPackage: {e}"}
+
+    return {"message": "No geospatial data found in any layer"}
 
 
 @app.get("/r1", response_model=ComplianceResponse)
 async def check_service(
     url: str = Query(..., description="The URL of the service to check")
-):
+) -> ComplianceResponse:
+    """
+    Check remote services for complience.
+    """
+
     # TODO validate that it was requested an URL
     wfs_url = f"{url}?SERVICE=WFS&REQUEST=GetCapabilities&VERSION=2.0.0"
     await log.info(f"Checking WFS service:{wfs_url}")
@@ -122,6 +172,26 @@ async def check_service(
             )
 
 
+@app.get("/ping", response_model=PingResponse)
+async def ping_pong() -> PingResponse:
+    """
+    Ping the API to check if it is operational and report its uptime.
+    """
+    current_time = datetime.now()
+    uptime = current_time - startup_time
+    # NO microseconds
+    uptime_str = str(uptime).split(".")[0]
+    startup_time_iso = startup_time.isoformat()
+    current_time_iso = current_time.isoformat()
+    # Dummy status as operations, extend status are necessary
+    return PingResponse(
+        status="operational",
+        uptime=uptime_str,
+        startup_time=startup_time_iso,
+        current_time=current_time_iso,
+    )
+
+
 # HyperCorn as HTTP2.0 server (HiperMilho)
 if __name__ == "__main__":
     # python api.py
@@ -131,6 +201,9 @@ if __name__ == "__main__":
     from fastapi import FastAPI
 
     config = Config()
+    # Not bigger than 100MB for endpoint
+    # No geopackage bigger than 100MB
+    config.limit_max_request_field_size = 100 * 1024 * 1024  # 100MB limit
     config.bind = ["0.0.0.0:8000"]
 
     # Starts HiperMilho event loop
