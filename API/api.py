@@ -201,9 +201,6 @@ if __name__ == "__main__":
     from fastapi import FastAPI
 
     config = Config()
-    # Not bigger than 100MB for endpoint
-    # No geopackage bigger than 100MB
-    config.limit_max_request_field_size = 100 * 1024 * 1024  # 100MB limit
     config.bind = ["0.0.0.0:8000"]
 
     # Starts HiperMilho event loop
