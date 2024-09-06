@@ -9,5 +9,4 @@ VALID_LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LOG_LEVEL = os.getenv("API_LOG_LEVEL", "INFO").upper()
 
 # Default to INFO if the level is invalid
-LOG_LEVEL = LOG_LEVEL if LOG_LEVEL in VALID_LOG_LEVELS else "INFO"  
-
+LOG_LEVEL = LOG_LEVEL if LOG_LEVEL in VALID_LOG_LEVELS else "INFO"
