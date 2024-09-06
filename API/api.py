@@ -8,8 +8,6 @@ import httpx
 import os
 from datetime import datetime
 
-app = FastAPI()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Code to execute on startup
@@ -20,6 +18,8 @@ async def lifespan(app: FastAPI):
 
     # Code to execute on shutdown (optional)
     await log.info("API Shutdown Event fired")
+
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/ping", response_model=PingResponse)
 async def ping_pong() -> PingResponse:
@@ -39,6 +39,8 @@ async def ping_pong() -> PingResponse:
         startup_time=startup_time_iso,
         current_time=current_time_iso,
     )
+
+
 
 # HyperCorn as HTTP2.0 server (HiperMilho)  
 if __name__ == "__main__":
